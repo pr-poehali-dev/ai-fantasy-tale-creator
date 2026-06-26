@@ -13,6 +13,7 @@ import {
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { generateStory } from '@/lib/storyGenerator';
+import StoryBook from '@/components/StoryBook';
 
 const HERO_IMG = 'https://cdn.poehali.dev/projects/7ea2770c-a283-46b6-90ce-5942b1848166/files/b6cb1f17-8faf-4381-a8db-b05dd74409e1.jpg';
 const GALLERY = [
@@ -49,6 +50,7 @@ const Index = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { toast } = useToast();
   const [form, setForm] = useState({ name: '', age: '', hero: '', theme: '', wish: '' });
+  const [pages, setPages] = useState(5);
   const [photos, setPhotos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [story, setStory] = useState<{ title: string; paragraphs: string[] } | null>(null);
@@ -87,7 +89,7 @@ const Index = () => {
     }
     setLoading(true);
     setTimeout(() => {
-      setStory(generateStory(form));
+      setStory(generateStory({ ...form, pages }));
       setLoading(false);
     }, 1200);
   };
@@ -304,6 +306,27 @@ const Index = () => {
                 placeholder="Например, малыш обожает динозавров и поезда"
                 className="rounded-xl h-12"
               />
+            </div>
+
+            {/* Pages selector */}
+            <div className="mt-6 space-y-3">
+              <Label className="font-heading font-semibold">Количество страниц</Label>
+              <div className="flex gap-2">
+                {[3, 5, 7, 10].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setPages(n)}
+                    className={`flex-1 h-11 rounded-xl font-heading font-semibold text-sm border-2 transition-all ${
+                      pages === n
+                        ? 'border-primary bg-primary text-primary-foreground shadow-md'
+                        : 'border-border bg-muted text-foreground hover:border-primary/50'
+                    }`}
+                  >
+                    {n}
+                    <span className="block text-[10px] font-normal opacity-70">стр.</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Photo upload */}
@@ -596,74 +619,41 @@ const Index = () => {
 
       {/* Story Modal */}
       <Dialog open={!!story} onOpenChange={(o) => !o && setStory(null)}>
-        <DialogContent className="max-w-2xl rounded-[2rem] p-0 overflow-hidden border-0">
-          <div className="night-gradient px-8 pt-8 pb-6 text-white relative">
-            {[...Array(8)].map((_, i) => (
+        <DialogContent className="max-w-xl rounded-[2rem] p-0 overflow-hidden border-0">
+          {/* Header */}
+          <div className="night-gradient px-6 pt-6 pb-4 text-white relative">
+            {[...Array(6)].map((_, i) => (
               <span
                 key={i}
                 className="absolute rounded-full bg-star animate-twinkle"
                 style={{
-                  top: `${Math.random() * 80}%`,
-                  left: `${Math.random() * 95}%`,
-                  width: '4px',
-                  height: '4px',
-                  animationDelay: `${Math.random() * 3}s`,
+                  top: `${20 + i * 12}%`,
+                  left: `${10 + i * 15}%`,
+                  width: '4px', height: '4px',
+                  animationDelay: `${i * 0.5}s`,
                 }}
               />
             ))}
-            <span className="relative inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-heading mb-3">
-              <Icon name="Sparkles" size={14} /> Ваша сказка готова
-            </span>
-            <h3 className="relative font-display text-2xl sm:text-3xl text-star leading-snug">
-              {story?.title}
-            </h3>
+            <div className="relative flex items-center justify-between">
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-heading">
+                <Icon name="Sparkles" size={14} /> Ваша сказка готова · {story?.paragraphs.length} стр.
+              </span>
+            </div>
           </div>
-          <div className="px-8 py-6 max-h-[50vh] overflow-y-auto space-y-5 bg-card">
-            {story?.paragraphs.map((p, i) => (
-              <div key={i}>
-                <p className="font-sans leading-relaxed text-foreground/90 first-letter:font-display first-letter:text-2xl first-letter:text-primary first-letter:mr-1">
-                  {p}
-                </p>
-                {photos[i] && (
-                  <div className="mt-4 flex justify-center">
-                    <div className="relative">
-                      <div className="absolute -inset-1.5 rounded-[1.5rem] bg-gradient-to-tr from-sunset/40 to-coral/40 blur-md" />
-                      <img
-                        src={photos[i]}
-                        alt={`Иллюстрация ${i + 1}`}
-                        className="relative rounded-[1.25rem] max-h-52 object-cover shadow-lg border-2 border-white"
-                      />
-                      <span className="absolute bottom-2 left-3 px-2 py-0.5 rounded-full glass text-[10px] font-heading font-semibold text-foreground/80">
-                        ✨ Наш герой
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="px-8 py-5 bg-muted/60 flex flex-wrap gap-2 justify-center">
-            {[
-              { icon: 'Printer', label: 'PDF / Печать', action: handlePrint },
-              { icon: 'Copy', label: 'Копировать', action: handleCopy },
-              { icon: 'Mail', label: 'Email', action: handleEmail },
-              { icon: 'Share2', label: 'Поделиться', action: handleShare },
-            ].map((a) => (
-              <Button
-                key={a.label}
-                variant="outline"
-                onClick={a.action}
-                className="rounded-full font-heading text-sm"
-              >
-                <Icon name={a.icon} size={16} className="mr-1.5" /> {a.label}
-              </Button>
-            ))}
-            <Button
-              onClick={handleGenerate}
-              className="rounded-full font-heading text-sm"
-            >
-              <Icon name="RefreshCw" size={16} className="mr-1.5" /> Другая сказка
-            </Button>
+          {/* Book */}
+          <div className="px-4 py-6 bg-gradient-to-b from-background to-muted/40">
+            {story && (
+              <StoryBook
+                title={story.title}
+                paragraphs={story.paragraphs}
+                photos={photos}
+                onPrint={handlePrint}
+                onCopy={handleCopy}
+                onEmail={handleEmail}
+                onShare={handleShare}
+                onRegenerate={handleGenerate}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
