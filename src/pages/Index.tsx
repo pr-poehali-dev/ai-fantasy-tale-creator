@@ -10,6 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { generateStory } from '@/lib/storyGenerator';
 
 const HERO_IMG = 'https://cdn.poehali.dev/projects/7ea2770c-a283-46b6-90ce-5942b1848166/files/b6cb1f17-8faf-4381-a8db-b05dd74409e1.jpg';
 const GALLERY = [
@@ -43,10 +46,57 @@ const NAV = [
 
 const Index = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { toast } = useToast();
+  const [form, setForm] = useState({ name: '', age: '', hero: '', theme: '', wish: '' });
+  const [loading, setLoading] = useState(false);
+  const [story, setStory] = useState<{ title: string; paragraphs: string[] } | null>(null);
+
+  const setField = (key: keyof typeof form, value: string) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
   const scrollTo = (id: string) => {
     setMenuOpen(false);
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleGenerate = () => {
+    if (!form.name.trim()) {
+      toast({ title: 'Как зовут малыша?', description: 'Введите имя ребёнка, чтобы создать сказку.' });
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      setStory(generateStory(form));
+      setLoading(false);
+    }, 1200);
+  };
+
+  const storyText = () =>
+    story ? `${story.title}\n\n${story.paragraphs.join('\n\n')}` : '';
+
+  const handlePrint = () => window.print();
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(storyText());
+    toast({ title: 'Сказка скопирована!', description: 'Теперь можно вставить её куда угодно.' });
+  };
+
+  const handleEmail = () => {
+    if (!story) return;
+    window.location.href = `mailto:?subject=${encodeURIComponent(story.title)}&body=${encodeURIComponent(storyText())}`;
+  };
+
+  const handleShare = async () => {
+    if (!story) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: story.title, text: storyText() });
+      } catch {
+        /* отменено пользователем */
+      }
+    } else {
+      handleCopy();
+    }
   };
 
   return (
@@ -181,15 +231,26 @@ const Index = () => {
             <div className="grid sm:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label className="font-heading font-semibold">Имя ребёнка</Label>
-                <Input placeholder="Например, Тимур" className="rounded-xl h-12" />
+                <Input
+                  value={form.name}
+                  onChange={(e) => setField('name', e.target.value)}
+                  placeholder="Например, Тимур"
+                  className="rounded-xl h-12"
+                />
               </div>
               <div className="space-y-2">
                 <Label className="font-heading font-semibold">Возраст</Label>
-                <Input type="number" placeholder="5" className="rounded-xl h-12" />
+                <Input
+                  type="number"
+                  value={form.age}
+                  onChange={(e) => setField('age', e.target.value)}
+                  placeholder="5"
+                  className="rounded-xl h-12"
+                />
               </div>
               <div className="space-y-2">
                 <Label className="font-heading font-semibold">Любимый герой</Label>
-                <Select>
+                <Select value={form.hero} onValueChange={(v) => setField('hero', v)}>
                   <SelectTrigger className="rounded-xl h-12">
                     <SelectValue placeholder="Выберите героя" />
                   </SelectTrigger>
@@ -202,7 +263,7 @@ const Index = () => {
               </div>
               <div className="space-y-2">
                 <Label className="font-heading font-semibold">Тема сказки</Label>
-                <Select>
+                <Select value={form.theme} onValueChange={(v) => setField('theme', v)}>
                   <SelectTrigger className="rounded-xl h-12">
                     <SelectValue placeholder="Выберите тему" />
                   </SelectTrigger>
@@ -216,23 +277,47 @@ const Index = () => {
             </div>
             <div className="space-y-2 mt-6">
               <Label className="font-heading font-semibold">Особое пожелание (необязательно)</Label>
-              <Input placeholder="Например, малыш обожает динозавров и поезда" className="rounded-xl h-12" />
+              <Input
+                value={form.wish}
+                onChange={(e) => setField('wish', e.target.value)}
+                placeholder="Например, малыш обожает динозавров и поезда"
+                className="rounded-xl h-12"
+              />
             </div>
-            <Button className="w-full mt-8 h-14 rounded-full font-heading font-bold text-base shadow-lg shadow-primary/30 hover-scale">
-              <Icon name="Sparkles" size={20} className="mr-2" /> Создать волшебную сказку
+            <Button
+              onClick={handleGenerate}
+              disabled={loading}
+              className="w-full mt-8 h-14 rounded-full font-heading font-bold text-base shadow-lg shadow-primary/30 hover-scale"
+            >
+              {loading ? (
+                <>
+                  <Icon name="Loader2" size={20} className="mr-2 animate-spin" /> Придумываю сказку…
+                </>
+              ) : (
+                <>
+                  <Icon name="Sparkles" size={20} className="mr-2" /> Создать волшебную сказку
+                </>
+              )}
             </Button>
 
             <div className="mt-8 pt-8 border-t border-border">
               <p className="text-center text-sm text-muted-foreground mb-4 font-heading">Готовую сказку можно:</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { icon: 'FileDown', label: 'PDF' },
-                  { icon: 'Printer', label: 'Печать' },
-                  { icon: 'Mail', label: 'Email' },
-                  { icon: 'Share2', label: 'Поделиться' },
+                  { icon: 'FileDown', label: 'PDF', action: handlePrint },
+                  { icon: 'Printer', label: 'Печать', action: handlePrint },
+                  { icon: 'Mail', label: 'Email', action: handleEmail },
+                  { icon: 'Share2', label: 'Поделиться', action: handleShare },
                 ].map((a) => (
                   <button
                     key={a.label}
+                    onClick={() => {
+                      if (!story) {
+                        toast({ title: 'Сначала создайте сказку', description: 'Заполните данные малыша выше.' });
+                        return;
+                      }
+                      a.action();
+                    }}
                     className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-muted hover:bg-primary/10 transition-colors"
                   >
                     <Icon name={a.icon} size={22} className="text-primary" />
@@ -343,6 +428,63 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Story Modal */}
+      <Dialog open={!!story} onOpenChange={(o) => !o && setStory(null)}>
+        <DialogContent className="max-w-2xl rounded-[2rem] p-0 overflow-hidden border-0">
+          <div className="night-gradient px-8 pt-8 pb-6 text-white relative">
+            {[...Array(8)].map((_, i) => (
+              <span
+                key={i}
+                className="absolute rounded-full bg-star animate-twinkle"
+                style={{
+                  top: `${Math.random() * 80}%`,
+                  left: `${Math.random() * 95}%`,
+                  width: '4px',
+                  height: '4px',
+                  animationDelay: `${Math.random() * 3}s`,
+                }}
+              />
+            ))}
+            <span className="relative inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-heading mb-3">
+              <Icon name="Sparkles" size={14} /> Ваша сказка готова
+            </span>
+            <h3 className="relative font-display text-2xl sm:text-3xl text-star leading-snug">
+              {story?.title}
+            </h3>
+          </div>
+          <div className="px-8 py-6 max-h-[45vh] overflow-y-auto space-y-4 bg-card">
+            {story?.paragraphs.map((p, i) => (
+              <p key={i} className="font-sans leading-relaxed text-foreground/90 first-letter:font-display first-letter:text-2xl first-letter:text-primary first-letter:mr-1">
+                {p}
+              </p>
+            ))}
+          </div>
+          <div className="px-8 py-5 bg-muted/60 flex flex-wrap gap-2 justify-center">
+            {[
+              { icon: 'Printer', label: 'PDF / Печать', action: handlePrint },
+              { icon: 'Copy', label: 'Копировать', action: handleCopy },
+              { icon: 'Mail', label: 'Email', action: handleEmail },
+              { icon: 'Share2', label: 'Поделиться', action: handleShare },
+            ].map((a) => (
+              <Button
+                key={a.label}
+                variant="outline"
+                onClick={a.action}
+                className="rounded-full font-heading text-sm"
+              >
+                <Icon name={a.icon} size={16} className="mr-1.5" /> {a.label}
+              </Button>
+            ))}
+            <Button
+              onClick={handleGenerate}
+              className="rounded-full font-heading text-sm"
+            >
+              <Icon name="RefreshCw" size={16} className="mr-1.5" /> Другая сказка
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Footer */}
       <footer className="night-gradient text-white/80 py-10">
