@@ -48,11 +48,31 @@ const Index = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { toast } = useToast();
   const [form, setForm] = useState({ name: '', age: '', hero: '', theme: '', wish: '' });
+  const [photos, setPhotos] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [story, setStory] = useState<{ title: string; paragraphs: string[] } | null>(null);
 
   const setField = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
+
+  const handlePhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).slice(0, 3);
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const url = ev.target?.result as string;
+        setPhotos((prev) => {
+          const next = [...prev, url].slice(0, 3);
+          return next;
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removePhoto = (idx: number) =>
+    setPhotos((prev) => prev.filter((_, i) => i !== idx));
 
   const scrollTo = (id: string) => {
     setMenuOpen(false);
@@ -284,6 +304,45 @@ const Index = () => {
                 className="rounded-xl h-12"
               />
             </div>
+
+            {/* Photo upload */}
+            <div className="mt-6 space-y-3">
+              <Label className="font-heading font-semibold">
+                Фото ребёнка для иллюстраций
+                <span className="ml-2 text-xs font-normal text-muted-foreground">до 3 фото</span>
+              </Label>
+              <div className="flex flex-wrap gap-3">
+                {photos.map((src, i) => (
+                  <div key={i} className="relative group w-24 h-24">
+                    <img
+                      src={src}
+                      alt={`Фото ${i + 1}`}
+                      className="w-24 h-24 rounded-2xl object-cover border-2 border-primary/30 shadow"
+                    />
+                    <button
+                      onClick={() => removePhoto(i)}
+                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive text-white flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Icon name="X" size={12} />
+                    </button>
+                  </div>
+                ))}
+                {photos.length < 3 && (
+                  <label className="w-24 h-24 rounded-2xl border-2 border-dashed border-primary/40 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-primary/5 transition-colors">
+                    <Icon name="ImagePlus" size={24} className="text-primary/60" />
+                    <span className="text-[10px] text-muted-foreground font-heading">Добавить</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handlePhotos}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
             <Button
               onClick={handleGenerate}
               disabled={loading}
@@ -453,11 +512,28 @@ const Index = () => {
               {story?.title}
             </h3>
           </div>
-          <div className="px-8 py-6 max-h-[45vh] overflow-y-auto space-y-4 bg-card">
+          <div className="px-8 py-6 max-h-[50vh] overflow-y-auto space-y-5 bg-card">
             {story?.paragraphs.map((p, i) => (
-              <p key={i} className="font-sans leading-relaxed text-foreground/90 first-letter:font-display first-letter:text-2xl first-letter:text-primary first-letter:mr-1">
-                {p}
-              </p>
+              <div key={i}>
+                <p className="font-sans leading-relaxed text-foreground/90 first-letter:font-display first-letter:text-2xl first-letter:text-primary first-letter:mr-1">
+                  {p}
+                </p>
+                {photos[i] && (
+                  <div className="mt-4 flex justify-center">
+                    <div className="relative">
+                      <div className="absolute -inset-1.5 rounded-[1.5rem] bg-gradient-to-tr from-sunset/40 to-coral/40 blur-md" />
+                      <img
+                        src={photos[i]}
+                        alt={`Иллюстрация ${i + 1}`}
+                        className="relative rounded-[1.25rem] max-h-52 object-cover shadow-lg border-2 border-white"
+                      />
+                      <span className="absolute bottom-2 left-3 px-2 py-0.5 rounded-full glass text-[10px] font-heading font-semibold text-foreground/80">
+                        ✨ Наш герой
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
           <div className="px-8 py-5 bg-muted/60 flex flex-wrap gap-2 justify-center">
